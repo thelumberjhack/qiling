@@ -8,6 +8,42 @@ from qiling.os.windows.fncc import *
 from qiling.os.fncc import *
 from qiling.os.windows.utils import *
 
+LPCOLESTR = WSTRING
+
+
+class BSTR:
+    """
+    typedef struct {
+        #ifdef _WIN64
+            DWORD pad;
+        #endif
+            DWORD size;
+            union {
+                char ptr[1];
+                WCHAR str[1];
+                DWORD dwptr[1];
+            } u;
+        } bstr_t;
+    """
+    def __init__(self, ql, base=0, size=0, data=b""):
+        self.ql = ql
+        self.base = base
+
+        self.pad = None
+        self.data = data
+        self.size = len(self.data)
+        self.terminator = 0x0000
+
+
+    def bytes(self):
+        s = b""
+        
+        s += self.ql.pack(self.size)        # 0x00
+        s += self.ql.pack(self.data)        # 0x04
+        s += self.ql.pack(self.terminator)  # 0x04 + len(self.data)
+
+        return s
+
 
 # UINT WINAPI SysStringLen(
 #     BSTR str
@@ -21,7 +57,7 @@ def hook_SysStringLen(ql, address, params):
     _str = params["str"]
 
     if _str:
-        ret = strlen = len(_str)    # TODO: /sizeof(WCHAR)
+        ret = _str.size
 
     return ret
 
@@ -37,7 +73,7 @@ def hook_SysStringByteLen(ql, address, params):
     _str = params["str"]
 
     if _str:
-        ret = strlen = len(_str)
+        ret = len(_str.data)
 
     return ret
 
